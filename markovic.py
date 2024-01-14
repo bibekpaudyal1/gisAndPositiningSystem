@@ -62,8 +62,8 @@ def print_matrix(matrix, states):
 
     for i, row in enumerate(matrix):
         print(f"{states[i]}|", end="")
-        total_steps = sum(1 for steps in row[:-1] if steps > 0)  # Count non-zero values
-        for steps in row[:-1]:  # Exclude the last element (total probability) from the sum
+        total_steps = sum(1 for steps in row[:-1] if steps > 0)  
+        for steps in row[:-1]: 
             print(f"{steps:<12}", end="")
         print(f"{total_steps:<12}", end="")
         print("\n" + "-" * (12 * (len(states) + 1) + 3))
