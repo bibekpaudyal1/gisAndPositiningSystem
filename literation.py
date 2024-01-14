@@ -12,7 +12,7 @@ def objective_function(coordinates, *args):
 emitters = np.array([[0.5, 0.5, 0.5], [4, 0, 0], [4, 5, 5], [3, 3, 3]])
 distances = np.array([3, 2, 4.2, 2.5])
 
-# Initial guess for receiver position
+
 initial_position = np.zeros(3)
 
 print("Script is running!")
@@ -44,7 +44,6 @@ for emitter, distance in zip(emitters, distances):
 # Plot estimated receiver position
 ax.scatter(receiver_position[0], receiver_position[1], receiver_position[2], c='b', marker='x', label='Estimated Receiver')
 
-# Annotate the estimated receiver position with coordinates
 ax.text(receiver_position[0], receiver_position[1], receiver_position[2],
         f'({receiver_position[0]:.2f}, {receiver_position[1]:.2f}, {receiver_position[2]:.2f})', color='b')
 
