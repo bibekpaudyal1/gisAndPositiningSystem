@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page {{ state }} - Transition Matrix</title>
+</head>
+<body>
+    <h1>Transition Matrix for Page {{ state }}</h1>
+    <ul>
+        {% for next_state, probability in probabilities.items() %}
+            <li>Probability to go to Page {{ next_state }}: {{ probability }}%</li>
+        {% endfor %}
+    </ul>
+    <a href="/">Back to Home</a>
+</body>
+</html>
