@@ -1,96 +1,110 @@
-from flask import Flask, render_template
-
-app = Flask(__name__)
+import networkx as nx
+import matplotlib.pyplot as plt
 
 class MarkovModel:
     def __init__(self, transitions):
         self.transitions = transitions
-        self.transition_probabilities = self.calculate_probabilities()
 
-    def calculate_probabilities(self):
-        probabilities = {}
-        for state, possible_transitions in self.transitions.items():
-            total_transitions = len(possible_transitions)
-            transition_counts = {next_state: possible_transitions.count(next_state) for next_state in set(possible_transitions)}
-            probabilities[state] = {next_state: count / total_transitions for next_state, count in transition_counts.items()}
-        return probabilities
+    def calculate_forward_backward_probabilities(self):
+        states = list(self.transitions.keys())
 
-markov_model = MarkovModel({
+        forward_matrix = [[0.0] * (len(states) + 3) for _ in range(len(states) + 1)]
+        backward_matrix = [[0.0] * (len(states) + 3) for _ in range(len(states) + 1)]
+
+        for i, state in enumerate(states):
+            forward_matrix[i][0] = state
+            backward_matrix[i][0] = state
+
+            for j, next_state in enumerate(states):
+                forward_matrix[i][j + 1] = self.transitions[state].count(next_state) / len(self.transitions[state]) if next_state in self.transitions[state] else 0.0
+                backward_matrix[i][j + 1] = self.transitions[next_state].count(state) / len(self.transitions[next_state]) if state in self.transitions[next_state] else 0.0
+
+            forward_matrix[i][-2] = sum(forward_matrix[i][1:-2])
+            forward_matrix[i][-1] = sum(1 for cell in forward_matrix[i][1:-2] if cell > 0)
+
+            backward_matrix[i][-2] = sum(backward_matrix[i][1:-2])
+            backward_matrix[i][-1] = 0  
+
+        forward_matrix[-1][-2] = sum(forward_matrix[i][-2] for i in range(len(states)))
+        forward_matrix[-1][-1] = sum(forward_matrix[i][-1] for i in range(len(states)))
+
+    
+        total_percentage_backward = [0] * (len(states) + 1)  
+        total_steps_backward = 0  
+
+        for j in range(1, len(states) + 1):
+            column_values = [backward_matrix[i][j] for i in range(len(states))]
+            total_percentage_backward[j] = sum(1 for cell in column_values if cell > 0)
+            total_steps_backward += total_percentage_backward[j]
+
+    
+        backward_matrix[-1][1:-2] = total_percentage_backward[1:]
+        backward_matrix[-1][-2] = total_steps_backward
+        backward_matrix[-1][-1] = 0  
+
+        return forward_matrix, backward_matrix
+
+
+transitions = {
     0: [1],
     1: [1, 2, 3, 4],
     2: [3],
     3: [1, 3],
-    4: [5],
-    5: []
-})
+    4: [],
+}
 
-def get_transition_info(state):
-    transition_probabilities = markov_model.transition_probabilities.get(state, {})
-    return transition_probabilities
+markov_model = MarkovModel(transitions)
 
+start_state = int(input("Enter the starting point: "))
+end_state = int(input("Enter the ending point: "))
 
+forward_matrix, backward_matrix = markov_model.calculate_forward_backward_probabilities()
 
-
-def generate_matrix_entry(start_state, end_state):
-    states = sorted(set(markov_model.transitions.keys()))
-    matrix = []
-
-    for row_state in states:
-        transition_info = get_transition_info(row_state)
-        row = []
-        total_steps = 0
-        for col_state in states:
-            steps = 0 if col_state not in transition_info else transition_info[col_state]
-            row.append(steps)
-            total_steps += steps
-
-        row.append(total_steps)
-        matrix.append(row)
-
-    return matrix, states
+# forward matrix with percentages, total number of steps, and count of probabilities greater than 0
+print("Forward Matrix:")
+num_rows_greater_than_zero_forward = 0
+for row in forward_matrix[:-1]:
+    row_str = "\t".join(f"{cell * 100:.2f}%" for cell in row[1:-2])
+    total_steps = int(row[-2])
+    count_greater_than_zero = int(row[-1])
+    if count_greater_than_zero > 0:
+        num_rows_greater_than_zero_forward += 1
+        row_str += f"\t{total_steps}\t{count_greater_than_zero}"
+    print(f"{row[0]}\t{row_str}")
 
 
+print(" Backward Matrix:")
+num_rows_greater_than_zero_backward = 0
+for row in backward_matrix:
+    row_str = "\t".join(str(cell) for cell in row[1:-2])
+    total_steps = int(row[-2])
+    if total_steps > 0:
+        num_rows_greater_than_zero_backward += 1
+        row_str += f"\t{total_steps}"
+    print(f"{row[0]}\t{row_str}")
+
+graph_forward = nx.DiGraph()
+graph_backward = nx.DiGraph()
+
+for state in transitions.keys():
+    graph_forward.add_node(state)
+    graph_backward.add_node(state)
+
+for state, next_states in transitions.items():
+    for next_state in next_states:
+        graph_forward.add_edge(state, next_state)
+        graph_backward.add_edge(next_state, state)
+layout_forward = nx.spring_layout(graph_forward)
+layout_backward = nx.spring_layout(graph_backward)
 
 
-
-def print_matrix(matrix, states):
-    print("Transition Steps Matrix:")
-    print("   ", end="")
-    for state in states + ["Total Steps"]:
-        print(f"{state:<12}", end="")
-    print("\n" + "-" * (12 * (len(states) + 1) + 3))
-
-    for i, row in enumerate(matrix):
-        print(f"{states[i]}|", end="")
-        total_steps = sum(1 for steps in row[:-1] if steps > 0)  
-        for steps in row[:-1]: 
-            print(f"{steps:<12}", end="")
-        print(f"{total_steps:<12}", end="")
-        print("\n" + "-" * (12 * (len(states) + 1) + 3))
+plt.figure()
+nx.draw(graph_forward, pos=layout_forward, with_labels=True, node_color='lightblue', node_size=500, font_size=12, edge_color='gray')
+plt.title("Forward Markov Model")
 
 
-def run_program():
-    while True:
-        start_state = input("Enter the starting position (0 to 5), or 'q' to quit: ")
-        
-        if start_state.lower() == 'q':
-            print("Quitting program.")
-            break
-        
-        end_state = input("Enter the ending position (0 to 5): ")
-        
-        try:
-            start_state = int(start_state)
-            end_state = int(end_state)
-            
-            if 0 <= start_state <= 5 and 0 <= end_state <= 5:
-                matrix, steps = generate_matrix_entry(start_state, end_state)
-                print_matrix(matrix, steps)
-            else:
-                print("Invalid input. Please enter numbers from 0 to 5.")
-        except ValueError:
-            print("Invalid input. Please enter valid numbers or 'q'.")
+plt.figure()
+nx.draw(graph_backward, pos=layout_backward, with_labels=True, node_color='lightcoral', node_size=500, font_size=12, edge_color='gray')
+plt.title(" Backward Markov Model")
 
-
-if __name__ == '__main__':
-    run_program()
+plt.show()
